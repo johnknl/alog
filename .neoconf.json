@@ -1,0 +1,10 @@
+{
+  "lspconfig": {
+    "gopls": {
+      "gopls": {
+        "buildFlags": ["-tags=flaky,tools"],
+        "env": { "GOFLAGS": "-tags=flaky,tools" }
+      }
+    }
+  }
+}

@@ -1,0 +1,34 @@
+site_name: alog
+site_url: https://johnknl.github.io/alog/
+repo_url: https://github.com/johnknl/alog
+
+theme:
+  name: material
+  features:
+    - navigation.indexes  
+  font:
+    text: Poppins
+    code: Roboto Mono
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+
+extra_css:
+  - stylesheets/extra.css
+
+markdown_extensions:
+  - admonition
+  - pymdownx.details
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
