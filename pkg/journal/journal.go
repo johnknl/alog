@@ -60,6 +60,16 @@ func (a *Journal) Append(payloads ...[]byte) (uint64, error) {
 	return a.log.Append(payloads...)
 }
 
+// FirstSequence returns the first retained sequence number and whether any records exist.
+func (a *Journal) FirstSequence() (uint64, bool) {
+	return a.log.FirstSequence()
+}
+
+// LastSequence returns the last retained sequence number and whether any records exist.
+func (a *Journal) LastSequence() (uint64, bool) {
+	return a.log.LastSequence()
+}
+
 // TruncateBefore removes all records with sequence numbers less than the specified seq from the log.
 func (a *Journal) TruncateBefore(seq uint64) error {
 	return a.log.TruncateBefore(seq)

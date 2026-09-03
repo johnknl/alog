@@ -106,6 +106,36 @@ func (log *Log) Head() uint64 {
 	return head.StartSequence()
 }
 
+// FirstSequence returns the first retained sequence number and whether any records exist.
+func (log *Log) FirstSequence() (uint64, bool) {
+	head := log.chain.Head()
+	if head == nil {
+		return 0, false
+	}
+
+	tail := log.chain.Tail()
+	if head.StartSequence() >= tail.NextSequence() {
+		return 0, false
+	}
+
+	return head.StartSequence(), true
+}
+
+// LastSequence returns the last retained sequence number and whether any records exist.
+func (log *Log) LastSequence() (uint64, bool) {
+	head := log.chain.Head()
+	if head == nil {
+		return 0, false
+	}
+
+	tail := log.chain.Tail()
+	if head.StartSequence() >= tail.NextSequence() {
+		return 0, false
+	}
+
+	return tail.NextSequence() - 1, true
+}
+
 // Load loads the log from the given storage location
 // or creates the first segment if none exist.
 func (log *Log) Load(storageLocation string) (err error) {
