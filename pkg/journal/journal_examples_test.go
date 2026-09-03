@@ -36,7 +36,7 @@ func ExampleJournal() {
 	}
 	defer os.RemoveAll(dir) //nolint:errcheck
 
-	j, err := journal.New(dir, 1024)
+	j, err := journal.New(dir, 1024, 0)
 	if err != nil {
 		fmt.Printf("new journal: %v\n", err)
 		return

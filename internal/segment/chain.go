@@ -50,6 +50,7 @@ type Chain struct {
 	framePool      *frame.Pool
 	directory      string
 	segments       []*Segment
+	startSequence  uint64
 	diskSize       int64
 	maxDiskSize    int64
 	maxSegments    int
@@ -61,6 +62,7 @@ type Chain struct {
 // NewChain creates a new Chain with the given options. It validates the options and
 // returns an error if they are invalid.
 func NewChain(
+	startSequence uint64,
 	maxSegmentSize int64,
 	maxDiskSize int64,
 	maxSegments int,
@@ -72,6 +74,7 @@ func NewChain(
 	}
 
 	return &Chain{
+		startSequence:  startSequence,
 		maxDiskSize:    maxDiskSize,
 		maxSegments:    maxSegments,
 		maxSegmentSize: maxSegmentSize,
@@ -300,8 +303,8 @@ func (chain *Chain) Load( // nolint:gocyclo // TODO: refactor to reduce complexi
 
 	if len(chain.segments) == 0 {
 		// if no segments exist, create the first segment
-		firstSegmentPath := filepath.Join(chain.directory, segmentFileName(0))
-		s, err = Create(firstSegmentPath, 0, pool, fs, chain.syncOnAppend)
+		firstSegmentPath := filepath.Join(chain.directory, segmentFileName(chain.startSequence))
+		s, err = Create(firstSegmentPath, chain.startSequence, pool, fs, chain.syncOnAppend)
 		if err != nil {
 			return err
 		}
@@ -537,8 +540,8 @@ func (chain *Chain) TruncateAfter(seq uint64) error {
 
 			chain.segments = chain.segments[:0]
 
-			firstSegmentPath := filepath.Join(chain.directory, segmentFileName(0))
-			newSeg, err := Create(firstSegmentPath, 0, chain.framePool, chain.fs, chain.syncOnAppend)
+			firstSegmentPath := filepath.Join(chain.directory, segmentFileName(chain.startSequence))
+			newSeg, err := Create(firstSegmentPath, chain.startSequence, chain.framePool, chain.fs, chain.syncOnAppend)
 			if err != nil {
 				return err
 			}

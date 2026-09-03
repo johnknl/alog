@@ -30,9 +30,12 @@ type Journal struct {
 }
 
 // New creates a new Journal instance with the given directory and segment size.
-func New(directory string, maxSegmentSize int64) (*Journal, error) {
+// startSequence applies when creating a new empty log; existing logs keep their
+// on-disk sequence space.
+func New(directory string, maxSegmentSize int64, startSequence uint64) (*Journal, error) {
 	l, err := log.New(log.Options{
 		Storage: log.StorageOptions{
+			StartSequence:  startSequence,
 			MaxDiskSize:    0,
 			MaxSegmentSize: maxSegmentSize,
 			MaxSegments:    0, // No limit on the number of segments

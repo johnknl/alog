@@ -42,7 +42,7 @@ func newLoadedChainWithDiskBudget(t *testing.T, maxSegments int, maxSegmentSize 
 	require.NoError(t, os.MkdirAll(dir, 0o750))
 
 	pool := frame.NewPool(1024, 10)
-	chain, err := NewChain(maxSegmentSize, maxDiskSize, maxSegments, false, nil)
+	chain, err := NewChain(0, maxSegmentSize, maxDiskSize, maxSegments, false, nil)
 	require.NoError(t, err)
 	require.NoError(t, chain.Load(dir, pool, nil))
 

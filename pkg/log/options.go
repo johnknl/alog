@@ -45,6 +45,11 @@ type PoolOptions struct {
 
 // StorageOptions defines the configuration options for segment loading.
 type StorageOptions struct {
+	// StartSequence is the sequence number assigned to the first record in a
+	// newly created log (that is, when no segment files exist yet).
+	// Existing logs ignore this value and keep their on-disk sequence space.
+	StartSequence uint64
+
 	// MaxDiskSize is the maximum retained physical size of all segment files.
 	// A value of 0 or smaller means disk retention is unbounded.
 	MaxDiskSize int64

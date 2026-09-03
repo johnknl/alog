@@ -36,14 +36,14 @@ func TestChain_NewChain(t *testing.T) {
 	t.Run("accepts unbounded segments without count limit", func(t *testing.T) {
 		t.Parallel()
 
-		_, err := NewChain(0, 0, 0, false, nil)
+		_, err := NewChain(0, 0, 0, 0, false, nil)
 		require.NoError(t, err)
 	})
 
 	t.Run("accepts unbounded single segment", func(t *testing.T) {
 		t.Parallel()
 
-		_, err := NewChain(0, 0, 1, false, nil)
+		_, err := NewChain(0, 0, 0, 1, false, nil)
 		require.NoError(t, err)
 	})
 }
@@ -69,7 +69,7 @@ func TestChain_Load(t *testing.T) {
 		require.NoError(t, err)
 
 		pool := frame.NewPool(1024, 10)
-		chain, err := NewChain(1024, 0, 2, false, nil)
+		chain, err := NewChain(0, 1024, 0, 2, false, nil)
 		require.NoError(t, err)
 		require.NoError(t, chain.Load(dir, pool, nil))
 		t.Cleanup(func() { require.NoError(t, chain.Close()) })
@@ -88,7 +88,7 @@ func TestChain_Load(t *testing.T) {
 		require.NoError(t, err)
 
 		pool := frame.NewPool(1024, 10)
-		chain, err := NewChain(1024, 0, 2, false, nil)
+		chain, err := NewChain(0, 1024, 0, 2, false, nil)
 		require.NoError(t, err)
 		require.NoError(t, chain.Load(dir, pool, nil))
 		t.Cleanup(func() { require.NoError(t, chain.Close()) })
@@ -110,7 +110,7 @@ func TestChain_Load(t *testing.T) {
 		require.NoError(t, s1.Close())
 
 		pool := frame.NewPool(1024, 10)
-		chain, err := NewChain(1024, 0, 1, false, nil)
+		chain, err := NewChain(0, 1024, 0, 1, false, nil)
 		require.NoError(t, err)
 		err = chain.Load(dir, pool, nil)
 		require.Error(t, err)
@@ -121,7 +121,7 @@ func TestChain_Load(t *testing.T) {
 
 		dir := filepath.Join(t.TempDir(), "nested", "missing")
 		pool := frame.NewPool(1024, 10)
-		chain, err := NewChain(1024, 0, 1, false, nil)
+		chain, err := NewChain(0, 1024, 0, 1, false, nil)
 		require.NoError(t, err)
 		require.NoError(t, chain.Load(dir, pool, nil))
 		t.Cleanup(func() { require.NoError(t, chain.Close()) })
@@ -253,7 +253,7 @@ func TestChain_DiskBudget(t *testing.T) {
 		require.NoError(t, s.Close())
 
 		pool := frame.NewPool(1024, 10)
-		chain, err := NewChain(1024, HeaderSize+1, 0, false, nil)
+		chain, err := NewChain(0, 1024, HeaderSize+1, 0, false, nil)
 		require.NoError(t, err)
 		err = chain.Load(dir, pool, nil)
 		require.ErrorIs(t, err, ErrDiskFull)

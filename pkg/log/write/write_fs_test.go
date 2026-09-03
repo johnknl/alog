@@ -63,7 +63,7 @@ func TestWriter_AppendPropagatesSyncFailure(t *testing.T) {
 	file.EXPECT().Sync().Return(nil)
 	file.EXPECT().Close().Return(nil)
 
-	chain, err := segment.NewChain(1024, 0, 2, true, fs)
+	chain, err := segment.NewChain(0, 1024, 0, 2, true, fs)
 	require.NoError(t, err)
 	require.NoError(t, chain.Load(storageDir, pool, fs))
 	t.Cleanup(func() { require.NoError(t, chain.Close()) })

@@ -65,6 +65,7 @@ type Log struct {
 // returns an error if they are invalid.
 func New(opts Options) (*Log, error) {
 	chain, err := segment.NewChain(
+		opts.Storage.StartSequence,
 		opts.Storage.MaxSegmentSize,
 		opts.Storage.MaxDiskSize,
 		opts.Storage.MaxSegments,

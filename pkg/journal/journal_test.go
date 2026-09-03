@@ -33,7 +33,7 @@ func TestJournal_RestartAndTruncateWorkflow(t *testing.T) {
 
 	dir := t.TempDir()
 
-	j1, err := New(dir, 512)
+	j1, err := New(dir, 512, 0)
 	require.NoError(t, err)
 
 	_, err = j1.Append([]byte("cmd-0"), []byte("cmd-1"), []byte("cmd-2"), []byte("cmd-3"))
@@ -53,7 +53,7 @@ func TestJournal_RestartAndTruncateWorkflow(t *testing.T) {
 	require.NoError(t, j1.Sync())
 	require.NoError(t, j1.log.Close())
 
-	j2, err := New(dir, 512)
+	j2, err := New(dir, 512, 0)
 	require.NoError(t, err)
 	t.Cleanup(func() { require.NoError(t, j2.log.Close()) })
 
