@@ -37,7 +37,7 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
-      - name: Publish versioned docs
+      - name: Build versioned docs with mike
         env:
           VERSION: ${{ github.ref_name }}
         run: |
