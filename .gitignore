@@ -1,5 +1,4 @@
 .work
 .tmp
 bin
-mock_*.go
 bench/results/*.tmp
