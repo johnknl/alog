@@ -1,6 +1,6 @@
 # API
 
-alog's `Log` API is the main interface to the append-only log. [Abstractions](./abstractions/) are
+alog's `Log` API is the main interface to the append-only log. [Abstractions](./abstractions/index.md) are
 thin wrappers around it.
 
 See also:
@@ -47,5 +47,4 @@ func ExampleLog_Append_andSync() {
 }
 ```
 <!-- EXAMPLE:ExampleLog_Append_andSync:end -->
-
 

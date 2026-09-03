@@ -5,19 +5,23 @@ repo_url: https://github.com/johnknl/alog
 theme:
   name: material
   features:
-    - navigation.indexes  
+    - navigation.indexes
   font:
     text: Poppins
     code: Roboto Mono
   palette:
     - media: "(prefers-color-scheme: light)"
       scheme: default
+      primary: brown
+      accent: amber
       toggle:
         icon: material/brightness-7
         name: Switch to dark mode
 
     - media: "(prefers-color-scheme: dark)"
       scheme: slate
+      primary: brown
+      accent: amber
       toggle:
         icon: material/brightness-4
         name: Switch to light mode
@@ -32,3 +36,8 @@ markdown_extensions:
       custom_fences:
         - name: mermaid
           class: mermaid
+
+extra:
+  version:
+    provider: mike
+    default: latest

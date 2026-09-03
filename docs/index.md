@@ -7,7 +7,7 @@ title: Home
 A fast general-purpose append-only log for Go.
 
 `alog` stores opaque byte records under monotonically increasing sequence
-numbers in segmented files. Jump right into the [API](./api/) section to get started.
+numbers in segmented files. Jump right into the [API](./api/index.md) section to get started.
 
 ## Compatibility
 
