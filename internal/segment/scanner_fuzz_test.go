@@ -22,6 +22,7 @@
 package segment
 
 import (
+	"math"
 	"testing"
 
 	"github.com/johnknl/alog/internal/frame"
@@ -60,13 +61,13 @@ func FuzzScanner_SeekBehavior(f *testing.F) {
 		// optionally shift the readable window by persisting a read offset
 		if s.NextSequence() > s.StartSequence()+1 {
 			cutSeq := s.StartSequence() + uint64(shape[0])%(s.NextSequence()-s.StartSequence())
-			scanner := NewScanner(s, frame.NewPool(64, 1<<20))
+			scanner := NewScanner(s, frame.NewPool(64, 1<<20), math.MaxUint32)
 			require.NoError(t, scanner.Seek(cutSeq))
 			require.NoError(t, s.SetReadOffset(scanner.ReadOffset()))
 		}
 
 		// seek outcome should match query position relative to bounds
-		scanner := NewScanner(s, frame.NewPool(64, 1<<20))
+		scanner := NewScanner(s, frame.NewPool(64, 1<<20), math.MaxUint32)
 		seekErr := scanner.Seek(query)
 
 		if query < s.StartSequence() {

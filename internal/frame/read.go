@@ -32,30 +32,44 @@ import (
 type Reader struct {
 	file storage.File
 	pool *Pool
+	max  uint32
 }
 
 // NewReader creates a new BorrowedFrameReader with the given file and pool.
-func NewReader(file storage.File, pool *Pool) *Reader {
+func NewReader(file storage.File, pool *Pool, limit uint32) *Reader {
 	return &Reader{
 		file: file,
 		pool: pool,
+		max:  limit,
 	}
 }
 
-// Read reads the frame header and payload for the given index and offset, and returns a borrowed value from the pool.
+// Read reads the frame header and payload for the given index and offset,
+// and returns a borrowed value from the pool.
 func (r *Reader) Read(index uint32, offset int64) (*Frame, error) {
-	f := r.pool.Get()
+	if r.max == 0 {
+		f := &Frame{}
+		if err := ReadHeader(r.file, index, offset, &f.Header); err != nil {
+			return nil, err
+		}
 
+		return f, nil
+	}
+
+	f := r.pool.Get()
 	err := ReadHeader(r.file, index, offset, &f.Header)
 	if err != nil {
 		f.Return()
 		return nil, err
 	}
 
-	n := f.Header.PayloadLength()
+	if r.max == 0 {
+		return f, nil
+	}
+
+	n := min(f.Header.PayloadLength(), r.max)
 
 	// Ensure the borrowed payload slice is large enough to hold the payload
-	// #nosec G115 -- cap() for slices is non-negative; narrowing int->uint32 is bounded by runtime memory limits.
 	if uint32(cap(f.Payload)) < n {
 		f.Payload = make([]byte, n)
 	} else {

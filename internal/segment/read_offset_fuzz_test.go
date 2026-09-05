@@ -24,6 +24,7 @@ package segment
 import (
 	"errors"
 	"fmt"
+	"math"
 	"testing"
 
 	"github.com/johnknl/alog/internal/frame"
@@ -51,7 +52,7 @@ func FuzzSegment_ReadOffsetRecovery(f *testing.F) {
 		// map all frame offsets to their corresponding sequence numbers
 		// nFrames is at most 256, so this map will be manageable
 		validOffsetToSeq := map[int64]uint64{}
-		sc := NewScanner(s, frame.NewPool(64, 1<<20))
+		sc := NewScanner(s, frame.NewPool(64, 1<<20), math.MaxUint32)
 		for seq := s.StartSequence(); seq <= s.NextSequence(); seq++ {
 			require.NoError(t, sc.Seek(seq))
 			validOffsetToSeq[sc.ReadOffset()] = seq

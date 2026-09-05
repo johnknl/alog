@@ -22,13 +22,10 @@
 package log_test
 
 import (
-	"context"
 	"fmt"
 	"os"
-	"time"
 
 	"github.com/johnknl/alog/pkg/log"
-	"github.com/johnknl/alog/pkg/log/write"
 )
 
 func ExampleLog_Append_andSync() {
@@ -61,48 +58,6 @@ func ExampleLog_Append_andSync() {
 
 	// Output:
 	// 2
-}
-
-func Example_concurrentWriter() {
-	dir, err := os.MkdirTemp("", "alog-example-writer-")
-	if err != nil {
-		fmt.Printf("mkdir temp: %v\n", err)
-		return
-	}
-	defer os.RemoveAll(dir) //nolint:errcheck
-
-	l, err := log.Load(dir, log.DefaultOptions())
-	if err != nil {
-		fmt.Printf("load log: %v\n", err)
-		return
-	}
-	defer l.Close() //nolint:errcheck
-
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
-	writer := write.StartWriter(ctx, l, log.WriteBufferOptions{
-		MaxLength: 16,
-		MaxSize:   4 << 10,
-		MaxDelay:  5 * time.Millisecond,
-	})
-
-	seq0, err := writer.Append(ctx, []byte("one"))
-	if err != nil {
-		fmt.Printf("append one: %v\n", err)
-		return
-	}
-
-	seq1, err := writer.Append(ctx, []byte("two"))
-	if err != nil {
-		fmt.Printf("append two: %v\n", err)
-		return
-	}
-
-	fmt.Println(seq0, seq1)
-
-	// Output:
-	// 0 1
 }
 
 func ExampleScanner_Seek_andStopAt() {
@@ -143,4 +98,39 @@ func ExampleScanner_Seek_andStopAt() {
 	// Output:
 	// 2:c
 	// 3:d
+}
+
+func ExampleNewLimitedScanner() {
+	dir, err := os.MkdirTemp("", "alog-example-limited-scan-")
+	if err != nil {
+		fmt.Printf("mkdir temp: %v\n", err)
+		return
+	}
+	defer os.RemoveAll(dir) //nolint:errcheck
+
+	l, err := log.Load(dir, log.DefaultOptions())
+	if err != nil {
+		fmt.Printf("load log: %v\n", err)
+		return
+	}
+	defer l.Close() //nolint:errcheck
+
+	if _, err = l.Append([]byte("alphabet"), []byte("xy")); err != nil {
+		fmt.Printf("append: %v\n", err)
+		return
+	}
+
+	s := log.NewLimitedScanner(l, 3)
+	for s.Next() {
+		seq, frame := s.Borrow()
+		fmt.Printf("%d:%s\n", seq, frame.Payload)
+		frame.Return()
+	}
+	if err = s.Err(); err != nil {
+		fmt.Printf("scan: %v\n", err)
+	}
+
+	// Output:
+	// 0:alp
+	// 1:xy
 }

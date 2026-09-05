@@ -23,6 +23,7 @@ package segment
 
 import (
 	"io"
+	"math"
 	"os"
 	"path/filepath"
 	"testing"
@@ -75,7 +76,7 @@ func TestSegment_ReadFrontierPersistsAcrossLoad(t *testing.T) {
 
 	require.NoError(t, s.Append([]byte("a"), []byte("b"), []byte("c")))
 
-	scanner := NewScanner(s, frame.NewPool(16, 1024))
+	scanner := NewScanner(s, frame.NewPool(16, 1024), math.MaxUint32)
 	require.NoError(t, scanner.Seek(12))
 	require.NoError(t, s.SetReadOffset(scanner.ReadOffset()))
 	require.NoError(t, s.Close())
@@ -86,7 +87,7 @@ func TestSegment_ReadFrontierPersistsAcrossLoad(t *testing.T) {
 
 	require.Equal(t, uint64(12), loaded.StartSequence())
 
-	readScanner := NewScanner(loaded, frame.NewPool(16, 1024))
+	readScanner := NewScanner(loaded, frame.NewPool(16, 1024), math.MaxUint32)
 	require.True(t, readScanner.Next())
 	seq, payload := readScanner.Value()
 	require.Equal(t, uint64(12), seq)
@@ -122,7 +123,7 @@ func TestSegment_SetReadOffsetRejectsInvalidOffsetWithoutPersisting(t *testing.T
 	require.NoError(t, statErr)
 	require.GreaterOrEqual(t, st.Size(), int64(HeaderSize))
 
-	scanner := NewScanner(loaded, frame.NewPool(16, 1024))
+	scanner := NewScanner(loaded, frame.NewPool(16, 1024), math.MaxUint32)
 	require.True(t, scanner.Next())
 	seq, _ := scanner.Value()
 	require.Equal(t, uint64(10), seq)
@@ -198,7 +199,7 @@ func TestSegment_Truncate(t *testing.T) {
 
 	require.Equal(t, uint64(12), loaded.NextSequence())
 
-	sc := NewScanner(loaded, frame.NewPool(16, 1024))
+	sc := NewScanner(loaded, frame.NewPool(16, 1024), math.MaxUint32)
 	require.True(t, sc.Next())
 	seq, payload := sc.Value()
 	require.Equal(t, uint64(10), seq)
@@ -251,7 +252,7 @@ func TestSegment_LoadTornTailPreservesValidPrefix(t *testing.T) {
 	// verify that the valid prefix is preserved
 	require.Equal(t, uint64(44), reloaded.NextSequence())
 
-	scanner := NewScanner(reloaded, frame.NewPool(1024, 1024))
+	scanner := NewScanner(reloaded, frame.NewPool(1024, 1024), math.MaxUint32)
 
 	for i, expectedPayload := range expected {
 		require.True(t, scanner.Next())

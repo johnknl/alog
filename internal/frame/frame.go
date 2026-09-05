@@ -105,5 +105,9 @@ func (f *Frame) Set(header Header, payload []byte) *Frame {
 // It should be called exactly once in the same context where the value
 // was obtained, and the value should not be used after calling it.
 func (f *Frame) Return() {
+	if f.pool == nil {
+		// prevent attempts at returning a frame that was not obtained from a pool
+		return
+	}
 	f.pool.put(f)
 }

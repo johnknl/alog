@@ -19,47 +19,56 @@
 // LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 
-package frame
+package write_test
 
 import (
-	"errors"
-	"io"
-	"testing"
+	"context"
+	"fmt"
+	"os"
+	"time"
 
-	"github.com/johnknl/alog/internal/storage/mocks"
-	"github.com/stretchr/testify/mock"
-	"github.com/stretchr/testify/require"
+	"github.com/johnknl/alog/pkg/log"
+	"github.com/johnknl/alog/pkg/log/write"
 )
 
-func TestReader_ReadMapsPartialPayloadToUnexpectedEOF(t *testing.T) {
-	t.Parallel()
+func ExampleWriter() {
+	dir, err := os.MkdirTemp("", "alog-example-writer-")
+	if err != nil {
+		fmt.Printf("mkdir temp: %v\n", err)
+		return
+	}
+	defer os.RemoveAll(dir) //nolint:errcheck
 
-	payload := []byte("abcd")
-	h := NewHeader(0, payload)
+	l, err := log.Load(dir, log.DefaultOptions())
+	if err != nil {
+		fmt.Printf("load log: %v\n", err)
+		return
+	}
+	defer l.Close() //nolint:errcheck
 
-	f := mocks.NewMockFile(t)
-	f.EXPECT().ReadAt(mock.Anything, int64(0)).RunAndReturn(func(dst []byte, _ int64) (int, error) {
-		copy(dst, h[:])
-		return len(h), nil
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	writer := write.StartWriter(ctx, l, log.WriteBufferOptions{
+		MaxLength: 16,
+		MaxSize:   4 << 10,
+		MaxDelay:  5 * time.Millisecond,
 	})
-	f.EXPECT().ReadAt(mock.Anything, int64(HeaderSize)).RunAndReturn(func(dst []byte, _ int64) (int, error) {
-		copy(dst[:2], payload[:2])
-		return 2, io.EOF
-	})
 
-	r := NewReader(f, NewPool(4, 1024), ^uint32(0))
-	_, err := r.Read(0, 0)
-	require.ErrorIs(t, err, io.ErrUnexpectedEOF)
-}
+	seq0, err := writer.Append(ctx, []byte("one"))
+	if err != nil {
+		fmt.Printf("append one: %v\n", err)
+		return
+	}
 
-func TestReadHeaderPropagatesReadFault(t *testing.T) {
-	t.Parallel()
+	seq1, err := writer.Append(ctx, []byte("two"))
+	if err != nil {
+		fmt.Printf("append two: %v\n", err)
+		return
+	}
 
-	wantErr := errors.New("disk read fault")
-	f := mocks.NewMockFile(t)
-	f.EXPECT().ReadAt(mock.Anything, int64(0)).Return(0, wantErr)
+	fmt.Println(seq0, seq1)
 
-	var h Header
-	err := ReadHeader(f, 0, 0, &h)
-	require.ErrorIs(t, err, wantErr)
+	// Output:
+	// 0 1
 }

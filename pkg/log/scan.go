@@ -24,15 +24,14 @@ package log
 import (
 	"errors"
 	"iter"
+	"math"
 
 	"github.com/johnknl/alog/internal/frame"
 	"github.com/johnknl/alog/internal/segment"
 )
 
-var (
-	// ErrSegmentReaped is returned when a segment has been reaped and is no longer available for scanning.
-	ErrSegmentReaped = segment.ErrSegmentReaped
-)
+// ErrSegmentReaped is returned when a segment has been reaped and is no longer available for scanning.
+var ErrSegmentReaped = segment.ErrSegmentReaped
 
 // Scanner is a scanner that borrows frames from the log segments.
 type Scanner struct {
@@ -44,12 +43,20 @@ type Scanner struct {
 	segments     []*segment.Segment
 	segmentIndex int
 	endSeq       uint64
+	payLimit     uint32
 }
 
 // NewScanner creates a new scanner for the given log.
 func NewScanner(log *Log) *Scanner {
+	return NewLimitedScanner(log, math.MaxUint32)
+}
+
+// NewLimitedScanner creates a new scanner for the given log
+// with a specified payload capacity.
+func NewLimitedScanner(log *Log, payloadLimit uint32) *Scanner {
 	return &Scanner{
 		log:      log,
+		payLimit: payloadLimit,
 		segments: log.segments(),
 	}
 }
@@ -79,7 +86,7 @@ func (s *Scanner) Next() bool {
 
 		if s.segScanner == nil {
 			s.current = segments[s.segmentIndex]
-			s.segScanner = segment.NewScanner(s.current, s.log.framePool)
+			s.segScanner = segment.NewScanner(s.current, s.log.framePool, s.payLimit)
 		}
 
 		if s.segScanner.Next() {
@@ -129,7 +136,7 @@ func (s *Scanner) Seek(startSeq uint64) {
 		if startSeq < seg.NextSequence() {
 			s.segmentIndex = i
 			s.current = seg
-			s.segScanner = segment.NewScanner(seg, s.log.framePool)
+			s.segScanner = segment.NewScanner(seg, s.log.framePool, s.payLimit)
 
 			seekSeq := max(startSeq, seg.StartSequence())
 

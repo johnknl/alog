@@ -22,6 +22,7 @@
 package segment
 
 import (
+	"math"
 	"os"
 	"path/filepath"
 	"testing"
@@ -141,7 +142,7 @@ func TestChain_TruncateBeforeTailNextSequence(t *testing.T) {
 
 	require.NoError(t, chain.TruncateBefore(seg.NextSequence()))
 
-	scanner := NewScanner(chain.Head(), frame.NewPool(16, 1024))
+	scanner := NewScanner(chain.Head(), frame.NewPool(16, 1024), math.MaxUint32)
 	require.False(t, scanner.Next())
 	require.NoError(t, scanner.Err())
 }

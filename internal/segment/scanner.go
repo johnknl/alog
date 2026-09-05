@@ -52,14 +52,14 @@ type Scanner struct {
 }
 
 // NewScanner creates a new Scanner for the given segment.
-func NewScanner(s *Segment, p *frame.Pool) *Scanner {
+func NewScanner(s *Segment, p *frame.Pool, limit uint32) *Scanner {
 	startOffset := max(s.ReadStart(), int64(HeaderSize))
 
 	return &Scanner{
 		segment: s,
 		offset:  startOffset,
 		index:   s.ReadStartIndex(),
-		reader:  frame.NewReader(s.file, p),
+		reader:  frame.NewReader(s.file, p, limit),
 	}
 }
 
@@ -140,7 +140,7 @@ func (s *Scanner) Next() bool {
 
 	s.borrowed = borrowed
 
-	s.offset += frame.HeaderSize + int64(len(borrowed.Payload))
+	s.offset += frame.HeaderSize + int64(borrowed.Header.PayloadLength())
 	s.index++
 
 	return true

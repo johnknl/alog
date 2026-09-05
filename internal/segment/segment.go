@@ -58,7 +58,7 @@ func (s *Segment) Name() string {
 func newSegment(file storage.File, header Header, pool *frame.Pool, syncOnAppend bool) *Segment {
 	s := &Segment{
 		file:         file,
-		reader:       frame.NewReader(file, pool),
+		reader:       frame.NewReader(file, pool, math.MaxUint32),
 		header:       header,
 		writeOffset:  HeaderSize, // start after the header
 		startOffset:  HeaderSize,

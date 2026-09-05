@@ -22,6 +22,8 @@
 package segment
 
 import (
+	"bytes"
+	"math"
 	"testing"
 
 	"github.com/johnknl/alog/internal/frame"
@@ -37,7 +39,7 @@ func TestScanner_NextBorrowValue(t *testing.T) {
 	s := chain.Tail()
 	require.NoError(t, s.Append([]byte("one"), []byte("two")))
 
-	scanner := NewScanner(s, frame.NewPool(16, 1024))
+	scanner := NewScanner(s, frame.NewPool(16, 1024), math.MaxUint32)
 
 	require.True(t, scanner.Next())
 	b := scanner.Borrow()
@@ -62,7 +64,7 @@ func TestScanner_Seek(t *testing.T) {
 	s := chain.Tail()
 	require.NoError(t, s.Append([]byte("a"), []byte("b"), []byte("c")))
 
-	scanner := NewScanner(s, frame.NewPool(16, 1024))
+	scanner := NewScanner(s, frame.NewPool(16, 1024), math.MaxUint32)
 
 	require.NoError(t, scanner.Seek(2))
 	require.True(t, scanner.Next())
@@ -83,7 +85,7 @@ func TestScanner_SeekOutOfBounds(t *testing.T) {
 	chain := newLoadedChain(t, 2, 1024)
 	t.Cleanup(func() { require.NoError(t, chain.Close()) })
 
-	scanner := NewScanner(chain.Tail(), frame.NewPool(16, 1024))
+	scanner := NewScanner(chain.Tail(), frame.NewPool(16, 1024), math.MaxUint32)
 	require.ErrorIs(t, scanner.Seek(^uint64(0)), ErrOutOfBounds)
 }
 
@@ -96,7 +98,7 @@ func TestScanner_SeekBeyondEndPositionsAtEnd(t *testing.T) {
 	s := chain.Tail()
 	require.NoError(t, s.Append([]byte("a"), []byte("b")))
 
-	scanner := NewScanner(s, frame.NewPool(16, 1024))
+	scanner := NewScanner(s, frame.NewPool(16, 1024), math.MaxUint32)
 	require.NoError(t, scanner.Seek(9999))
 	require.False(t, scanner.Next())
 	require.NoError(t, scanner.Err())
@@ -113,11 +115,11 @@ func TestScanner_SeekAfterReadOffsetAdvance(t *testing.T) {
 		require.NoError(t, s.Append([]byte{byte(i % 251)}))
 	}
 
-	set := NewScanner(s, frame.NewPool(16, 1024))
+	set := NewScanner(s, frame.NewPool(16, 1024), math.MaxUint32)
 	require.NoError(t, set.Seek(512))
 	require.NoError(t, s.SetReadOffset(set.ReadOffset()))
 
-	scanner := NewScanner(s, frame.NewPool(16, 1024))
+	scanner := NewScanner(s, frame.NewPool(16, 1024), math.MaxUint32)
 	require.NoError(t, scanner.Seek(512))
 	require.True(t, scanner.Next())
 	seq, _ := scanner.Value()
@@ -127,4 +129,32 @@ func TestScanner_SeekAfterReadOffsetAdvance(t *testing.T) {
 	require.True(t, scanner.Next())
 	seq, _ = scanner.Value()
 	require.Equal(t, uint64(700), seq)
+}
+
+func TestScanner_LimitedPayloadReading(t *testing.T) {
+	t.Parallel()
+
+	chain := newLoadedChain(t, 2, 1024*1024)
+	t.Cleanup(func() { require.NoError(t, chain.Close()) })
+
+	large := bytes.Repeat([]byte{'x'}, 64)
+	second := []byte("tail")
+
+	s := chain.Tail()
+	require.NoError(t, s.Append(large, second))
+
+	scanner := NewScanner(s, frame.NewPool(16, 1024), 8)
+
+	require.True(t, scanner.Next())
+	seq, payload := scanner.Value()
+	require.Equal(t, uint64(0), seq)
+	require.Equal(t, large[:8], payload)
+
+	require.True(t, scanner.Next())
+	seq, payload = scanner.Value()
+	require.Equal(t, uint64(1), seq)
+	require.Equal(t, second, payload)
+
+	require.False(t, scanner.Next())
+	require.NoError(t, scanner.Err())
 }

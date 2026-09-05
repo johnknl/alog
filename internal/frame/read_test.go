@@ -63,11 +63,34 @@ func TestReader_Read(t *testing.T) {
 	_, err = f.Write(payload)
 	require.NoError(t, err)
 
-	r := NewReader(f, NewPool(4, 1024))
+	r := NewReader(f, NewPool(4, 1024), ^uint32(0))
 	b, err := r.Read(0, 0)
 	require.NoError(t, err)
 	require.Equal(t, uint32(0), b.Header.Index())
 	require.Equal(t, payload, b.Payload)
+	b.Return()
+}
+
+func TestReader_ReadLimitZeroReturnsNilPayload(t *testing.T) {
+	t.Parallel()
+
+	path := filepath.Join(t.TempDir(), "borrowed-zero-limit.bin")
+	f, err := (&storage.OSFileSystem{}).Create(path)
+	require.NoError(t, err)
+	t.Cleanup(func() { require.NoError(t, f.Close()) })
+
+	payload := []byte("borrow")
+	h := NewHeader(0, payload)
+	_, err = f.Write(h[:])
+	require.NoError(t, err)
+	_, err = f.Write(payload)
+	require.NoError(t, err)
+
+	r := NewReader(f, NewPool(4, 1024), 0)
+	b, err := r.Read(0, 0)
+	require.NoError(t, err)
+	require.Equal(t, uint32(0), b.Header.Index())
+	require.Nil(t, b.Payload)
 	b.Return()
 }
 

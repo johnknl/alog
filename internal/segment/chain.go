@@ -492,7 +492,7 @@ func (chain *Chain) TruncateBefore(seq uint64) error {
 	segment := chain.segments[0]
 	if segment.StartSequence() < seq {
 		// find the read offset within the segment and persist it
-		scanner := NewScanner(segment, nil)
+		scanner := NewScanner(segment, nil, 0)
 
 		if err := scanner.Seek(seq); err != nil {
 			return fmt.Errorf("failed to seek to sequence %d in segment %s: %w", seq, segment.Name(), err)
