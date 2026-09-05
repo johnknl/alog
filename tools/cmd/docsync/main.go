@@ -239,6 +239,8 @@ func buildExampleBlock(src []byte, fset *token.FileSet, fn *goast.FuncDecl, impo
 	}
 
 	body := trimOuterNewlines(string(src[start:end]))
+	body = stripNoDocLines(body)
+	body = trimOuterNewlines(body)
 	body = trimCommonIndent(body)
 
 	docLead := ""
@@ -376,11 +378,27 @@ func parseExampleHeading(name string) (string, string, bool) {
 		return "", "", false
 	}
 
-	if len(parts) > 1 && isExportedIdent(primary) && isExportedIdent(parts[1]) {
-		return primary, parts[1], true
+	if len(parts) > 1 && isExportedIdent(primary) {
+		if isExportedIdent(parts[1]) {
+			return primary, parts[1], true
+		}
+
+		return primary, upperFirst(parts[1]), false
 	}
 
 	return primary, "", false
+}
+
+func upperFirst(s string) string {
+	if s == "" {
+		return s
+	}
+
+	if s[0] >= 'a' && s[0] <= 'z' {
+		return strings.ToUpper(s[:1]) + s[1:]
+	}
+
+	return s
 }
 
 func isExportedIdent(name string) bool {
@@ -399,6 +417,22 @@ func trimOuterNewlines(s string) string {
 	s = strings.TrimSuffix(s, "\n")
 
 	return s
+}
+
+func stripNoDocLines(s string) string {
+	lines := strings.Split(s, "\n")
+	kept := make([]string, 0, len(lines))
+
+	for _, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		if strings.HasSuffix(trimmed, "// nodoc") {
+			continue
+		}
+
+		kept = append(kept, line)
+	}
+
+	return strings.Join(kept, "\n")
 }
 
 func trimCommonIndent(s string) string {
@@ -575,6 +609,9 @@ func renderExampleReplacement(example exampleContent, seenH2 map[string]bool, pa
 			if !typeInPageH1 && !seenH2[example.h2] {
 				parts = append(parts, "## "+example.h2)
 				seenH2[example.h2] = true
+			}
+			if example.h3 != "" {
+				parts = append(parts, "### "+example.h3)
 			}
 		} else {
 			if !typeInPageH1 && !seenH2[example.h2] {

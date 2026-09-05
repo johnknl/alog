@@ -10,8 +10,6 @@ See also:
 - [Writer](./writer.md)
 
 
-## Usage Example
-
 <!-- EXAMPLE:ExampleLog_Append_andSync:start -->
 ## Log
 
