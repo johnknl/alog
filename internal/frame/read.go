@@ -70,7 +70,7 @@ func (r *Reader) Read(index uint32, offset int64) (*Frame, error) {
 	n := min(f.Header.PayloadLength(), r.max)
 
 	// Ensure the borrowed payload slice is large enough to hold the payload
-	if uint32(cap(f.Payload)) < n {
+	if uint32(cap(f.Payload)) < n { // #nosec: G115 r.max is uint32
 		f.Payload = make([]byte, n)
 	} else {
 		f.Payload = f.Payload[:n]
