@@ -31,6 +31,11 @@ import (
 	"github.com/johnknl/alog/pkg/log/write"
 )
 
+// ExampleWriter shows concurrent-safe buffered appends via StartWriter.
+//
+// Use `StartWriter` for concurrent append workloads with grouped buffering.
+// The writer batches appends according to buffer thresholds to reduce write
+// amplification while preserving ordered sequence assignment.
 func ExampleWriter() {
 	dir, err := os.MkdirTemp("", "alog-example-writer-")
 	if err != nil {

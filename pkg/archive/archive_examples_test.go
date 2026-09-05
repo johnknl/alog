@@ -31,6 +31,14 @@ import (
 	"github.com/johnknl/alog/pkg/log"
 )
 
+// ExampleArchive shows buffered appends and range reads through Archive.
+//
+// `Archive` is the high-level API for concurrent appends plus non-destructive
+// range reads.
+// Use it when many producers write at once and you want buffered concurrent
+// appends.
+// `Archive` combines write buffering with retention controls suitable for
+// long-running event streams.
 func ExampleArchive() {
 	dir, err := os.MkdirTemp("", "alog-example-archive-")
 	if err != nil {

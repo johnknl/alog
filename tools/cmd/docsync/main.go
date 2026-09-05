@@ -61,6 +61,18 @@ type edit struct {
 	replacement string
 }
 
+type exampleContent struct {
+	name      string
+	body      string
+	docLead   string
+	docDetail string
+	h2        string
+	h3        string
+	isMethod  bool
+	goRefURL  string
+	goRefID   string
+}
+
 func main() {
 	var root string
 	var check bool
@@ -69,7 +81,7 @@ func main() {
 	flag.BoolVar(&check, "check", false, "fail if files would change")
 	flag.Parse()
 
-	replacements := make(map[string]string)
+	replacements := make(map[string]exampleContent)
 
 	exampleBlocks, loadErr := loadExampleBlocks(root)
 	if loadErr != nil {
@@ -162,7 +174,12 @@ func collectMarkdownFiles(root string) ([]string, error) {
 	return files, nil
 }
 
-func loadExampleBlocks(root string) (map[string]string, error) {
+func loadExampleBlocks(root string) (map[string]exampleContent, error) {
+	modulePath, err := detectModulePath(root)
+	if err != nil {
+		return nil, err
+	}
+
 	exampleFiles, err := collectExampleFiles(root)
 	if err != nil {
 		return nil, err
@@ -172,8 +189,10 @@ func loadExampleBlocks(root string) (map[string]string, error) {
 		return nil, fmt.Errorf("no example source files found under %s", root)
 	}
 
-	blocks := make(map[string]string)
+	blocks := make(map[string]exampleContent)
 	for _, path := range exampleFiles {
+		importPath := packageImportPath(root, modulePath, path)
+
 		src, readErr := os.ReadFile(path)
 		if readErr != nil {
 			return nil, readErr
@@ -196,18 +215,247 @@ func loadExampleBlocks(root string) (map[string]string, error) {
 				continue
 			}
 
-			start := fset.Position(fn.Pos()).Offset
-			end := fset.Position(fn.End()).Offset
-			if start < 0 || end <= start || end > len(src) {
-				return nil, fmt.Errorf("invalid function bounds for %s", name)
+			block, blockErr := buildExampleBlock(src, fset, fn, importPath)
+			if blockErr != nil {
+				return nil, blockErr
 			}
 
-			snippet := strings.TrimSpace(string(src[start:end]))
-			blocks[name] = "```go\n" + snippet + "\n```"
+			blocks[name] = block
 		}
 	}
 
 	return blocks, nil
+}
+
+func buildExampleBlock(src []byte, fset *token.FileSet, fn *goast.FuncDecl, importPath string) (exampleContent, error) {
+	if fn.Body == nil {
+		return exampleContent{}, fmt.Errorf("example %s has no body", fn.Name.Name)
+	}
+
+	start := fset.Position(fn.Body.Lbrace).Offset + 1
+	end := fset.Position(fn.Body.Rbrace).Offset
+	if start < 0 || end < start || end > len(src) {
+		return exampleContent{}, fmt.Errorf("invalid function body bounds for %s", fn.Name.Name)
+	}
+
+	body := trimOuterNewlines(string(src[start:end]))
+	body = trimCommonIndent(body)
+
+	docLead := ""
+	docDetail := ""
+	if fn.Doc != nil {
+		docLead, docDetail = splitDocLeadAndDetail(fn.Doc.Text())
+		docLead = rewriteExampleDocPrefix(fn.Name.Name, docLead)
+	}
+
+	h2, h3, isMethod := parseExampleHeading(fn.Name.Name)
+	goRefURL, goRefID := buildGoRef(importPath, h2, h3, isMethod)
+
+	return exampleContent{
+		name:      fn.Name.Name,
+		body:      body,
+		docLead:   docLead,
+		docDetail: docDetail,
+		h2:        h2,
+		h3:        h3,
+		isMethod:  isMethod,
+		goRefURL:  goRefURL,
+		goRefID:   goRefID,
+	}, nil
+}
+
+func detectModulePath(root string) (string, error) {
+	goModPath := filepath.Join(root, "go.mod")
+	raw, err := os.ReadFile(goModPath)
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return "", nil
+		}
+
+		return "", err
+	}
+
+	for _, line := range strings.Split(string(raw), "\n") {
+		line = strings.TrimSpace(line)
+		if !strings.HasPrefix(line, "module ") {
+			continue
+		}
+
+		return strings.TrimSpace(strings.TrimPrefix(line, "module ")), nil
+	}
+
+	return "", nil
+}
+
+func packageImportPath(root string, modulePath string, sourcePath string) string {
+	if modulePath == "" {
+		return ""
+	}
+
+	rel, err := filepath.Rel(root, filepath.Dir(sourcePath))
+	if err != nil {
+		return ""
+	}
+
+	rel = filepath.ToSlash(rel)
+	if rel == "." || rel == "" {
+		return modulePath
+	}
+
+	return modulePath + "/" + rel
+}
+
+func buildGoRef(importPath string, h2 string, h3 string, isMethod bool) (string, string) {
+	if importPath == "" {
+		return "", ""
+	}
+
+	anchor := h2
+	if isMethod && h2 != "" && h3 != "" {
+		anchor = h2 + "." + h3
+	}
+	if anchor == "" {
+		return "", ""
+	}
+
+	return "https://pkg.go.dev/" + importPath + "#" + anchor, anchor
+}
+
+func splitDocLeadAndDetail(raw string) (string, string) {
+	doc := strings.TrimSpace(raw)
+	if doc == "" {
+		return "", ""
+	}
+
+	lines := strings.Split(doc, "\n")
+	lead := ""
+	idx := 0
+	for idx < len(lines) {
+		line := strings.TrimSpace(lines[idx])
+		if line != "" {
+			lead = line
+			idx++
+			break
+		}
+		idx++
+	}
+
+	if lead == "" {
+		return "", ""
+	}
+
+	detail := strings.TrimSpace(strings.Join(lines[idx:], "\n"))
+	return lead, detail
+}
+
+func rewriteExampleDocPrefix(name string, doc string) string {
+	if name == "" || doc == "" {
+		return doc
+	}
+
+	if strings.HasPrefix(doc, name) {
+		return "The following example" + doc[len(name):]
+	}
+
+	return doc
+}
+
+func parseExampleHeading(name string) (string, string, bool) {
+	if !strings.HasPrefix(name, "Example") {
+		return "", "", false
+	}
+
+	rest := strings.TrimPrefix(name, "Example")
+	if rest == "" {
+		return "", "", false
+	}
+
+	parts := strings.Split(rest, "_")
+	primary := parts[0]
+	if primary == "" {
+		return "", "", false
+	}
+
+	if len(parts) > 1 && isExportedIdent(primary) && isExportedIdent(parts[1]) {
+		return primary, parts[1], true
+	}
+
+	return primary, "", false
+}
+
+func isExportedIdent(name string) bool {
+	if name == "" {
+		return false
+	}
+
+	r := []rune(name)[0]
+	return r >= 'A' && r <= 'Z'
+}
+
+func trimOuterNewlines(s string) string {
+	s = strings.TrimPrefix(s, "\r\n")
+	s = strings.TrimPrefix(s, "\n")
+	s = strings.TrimSuffix(s, "\r\n")
+	s = strings.TrimSuffix(s, "\n")
+
+	return s
+}
+
+func trimCommonIndent(s string) string {
+	lines := strings.Split(s, "\n")
+	common := ""
+	hasContent := false
+
+	for _, line := range lines {
+		if strings.TrimSpace(line) == "" {
+			continue
+		}
+
+		hasContent = true
+		indentLen := 0
+		for indentLen < len(line) {
+			if line[indentLen] != ' ' && line[indentLen] != '\t' {
+				break
+			}
+			indentLen++
+		}
+
+		indent := line[:indentLen]
+		if common == "" {
+			common = indent
+			continue
+		}
+
+		common = sharedIndentPrefix(common, indent)
+		if common == "" {
+			break
+		}
+	}
+
+	if !hasContent || common == "" {
+		return s
+	}
+
+	for i, line := range lines {
+		if strings.TrimSpace(line) == "" {
+			continue
+		}
+		if strings.HasPrefix(line, common) {
+			lines[i] = line[len(common):]
+		}
+	}
+
+	return strings.Join(lines, "\n")
+}
+
+func sharedIndentPrefix(a, b string) string {
+	n := min(len(a), len(b))
+	i := 0
+	for i < n && a[i] == b[i] {
+		i++
+	}
+
+	return a[:i]
 }
 
 func collectExampleFiles(root string) ([]string, error) {
@@ -242,7 +490,7 @@ func collectExampleFiles(root string) ([]string, error) {
 	return files, nil
 }
 
-func replaceMarkers(path string, replacements map[string]string) (string, bool, error) {
+func replaceMarkers(path string, replacements map[string]exampleContent) (string, bool, error) {
 	raw, err := os.ReadFile(path)
 	if err != nil {
 		return "", false, err
@@ -255,6 +503,8 @@ func replaceMarkers(path string, replacements map[string]string) (string, bool, 
 
 	edits := make([]edit, 0)
 	stack := make(map[string]marker)
+	seenH2 := make(map[string]bool)
+	pageH1 := collectPageH1(string(raw))
 	for _, m := range markers {
 		if m.mType != markerExample {
 			continue
@@ -277,10 +527,12 @@ func replaceMarkers(path string, replacements map[string]string) (string, bool, 
 			return "", false, fmt.Errorf("missing replacement content for %s used in %s", key, path)
 		}
 
+		rendered := renderExampleReplacement(replacement, seenH2, pageH1)
+
 		edits = append(edits, edit{
 			start:       start.insertStart,
 			end:         m.start,
-			replacement: replacement + "\n",
+			replacement: rendered + "\n",
 		})
 	}
 
@@ -296,6 +548,72 @@ func replaceMarkers(path string, replacements map[string]string) (string, bool, 
 
 	updated, changed := applyEdits(raw, edits)
 	return string(updated), changed, nil
+}
+
+func collectPageH1(md string) string {
+	for _, line := range strings.Split(md, "\n") {
+		trimmed := strings.TrimSpace(line)
+		if !strings.HasPrefix(trimmed, "# ") {
+			continue
+		}
+
+		heading := strings.TrimSpace(strings.TrimPrefix(trimmed, "# "))
+		if heading != "" {
+			return heading
+		}
+	}
+
+	return ""
+}
+
+func renderExampleReplacement(example exampleContent, seenH2 map[string]bool, pageH1 string) string {
+	parts := make([]string, 0, 5)
+	typeInPageH1 := matchesHeading(example.h2, pageH1)
+
+	if example.h2 != "" {
+		if !example.isMethod {
+			if !typeInPageH1 && !seenH2[example.h2] {
+				parts = append(parts, "## "+example.h2)
+				seenH2[example.h2] = true
+			}
+		} else {
+			if !typeInPageH1 && !seenH2[example.h2] {
+				parts = append(parts, "## "+example.h2)
+				seenH2[example.h2] = true
+			}
+			if example.h3 != "" {
+				if typeInPageH1 {
+					parts = append(parts, "## "+example.h3)
+				} else {
+					parts = append(parts, "### "+example.h3)
+				}
+			}
+		}
+	}
+
+	if example.docDetail != "" {
+		parts = append(parts, example.docDetail)
+	}
+
+	if example.goRefURL != "" && example.goRefID != "" {
+		parts = append(parts, "Go reference: ["+example.goRefID+"]("+example.goRefURL+").")
+	}
+
+	if example.docLead != "" {
+		parts = append(parts, example.docLead)
+	}
+
+	parts = append(parts, "```go\n"+example.body+"\n```")
+
+	return strings.Join(parts, "\n\n")
+}
+
+func matchesHeading(a string, b string) bool {
+	if a == "" || b == "" {
+		return false
+	}
+
+	return strings.EqualFold(strings.TrimSpace(a), strings.TrimSpace(b))
 }
 
 func collectMarkers(raw []byte) ([]marker, error) {

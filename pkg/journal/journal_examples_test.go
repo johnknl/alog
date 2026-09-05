@@ -28,6 +28,11 @@ import (
 	"github.com/johnknl/alog/pkg/journal"
 )
 
+// ExampleJournal shows append, truncation, range iteration, and sync for Journal.
+//
+// `Journal` is the low-policy API: sequential append, explicit `Sync`,
+// non-destructive `Range`, and explicit prefix/suffix truncation.
+// Use it when callers control retention and durability cadence explicitly.
 func ExampleJournal() {
 	dir, err := os.MkdirTemp("", "alog-example-journal-")
 	if err != nil {

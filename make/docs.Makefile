@@ -8,7 +8,7 @@ DOCSYNC ?= $(BIN_DIR)/docsync
 include make/common.mk
 
 .PHONY: docs
-docs: ## Build docs
+docs: sync ## Build docs
 	docker run --rm \
 		-p 8000:8000 \
 	  	-v "$$PWD:/docs" \

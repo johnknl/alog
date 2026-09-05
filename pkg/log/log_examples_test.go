@@ -28,6 +28,10 @@ import (
 	"github.com/johnknl/alog/pkg/log"
 )
 
+// ExampleLog_Append_andSync shows appending a batch and syncing it to durable storage.
+//
+// It is useful when your caller defines commit boundaries explicitly and wants
+// to force persistence before acknowledging work.
 func ExampleLog_Append_andSync() {
 	dir, err := os.MkdirTemp("", "alog-example-append-")
 	if err != nil {
@@ -60,6 +64,11 @@ func ExampleLog_Append_andSync() {
 	// 2
 }
 
+// ExampleScanner_Seek_andStopAt shows scanning a range of records with Seek and StopAt.
+//
+// The `Scanner` sequentially accesses frames by sequence number.
+// `Seek` positions the start sequence and `StopAt` applies an exclusive upper bound,
+// giving a half-open scan window [start, end).
 func ExampleScanner_Seek_andStopAt() {
 	dir, err := os.MkdirTemp("", "alog-example-scan-")
 	if err != nil {
@@ -100,6 +109,12 @@ func ExampleScanner_Seek_andStopAt() {
 	// 3:d
 }
 
+// ExampleNewLimitedScanner shows scanning with payload truncation per record.
+//
+// `NewLimitedScanner` applies a payload read limit while preserving sequence and
+// frame-boundary traversal.
+// This is useful for previews, metadata passes, and other workflows that need
+// sequence ordering without materializing full payloads.
 func ExampleNewLimitedScanner() {
 	dir, err := os.MkdirTemp("", "alog-example-limited-scan-")
 	if err != nil {

@@ -28,6 +28,13 @@ import (
 	"github.com/johnknl/alog/pkg/wal"
 )
 
+// ExampleWAL_Consume shows appending records and consuming them in-order.
+//
+// `WAL` is the durable append plus destructive consume abstraction.
+// Use it when records should be processed in order and removed after
+// successful processing.
+// WAL provides write-ahead semantics over the base log abstraction and exposes
+// a linear consume API for replay flows.
 func ExampleWAL_Consume() {
 	dir, err := os.MkdirTemp("", "alog-example-wal-")
 	if err != nil {
